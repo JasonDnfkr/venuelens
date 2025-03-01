@@ -115,24 +115,41 @@ button:hover {
     background: #0056b3;
 }
 
-/* 查询结果表格 */
-table {
+/* 让表格外层容器支持水平滚动 */
+.table-container {
     width: 100%;
+    overflow-x: auto; /* 允许横向滚动 */
+    border-radius: 5px;
+    border: 1px solid #ddd; /* 增加边框，看起来更清晰 */
+    padding: 5px;
+}
+
+/* 让表格适应内容，并允许滚动 */
+table {
+    width: max-content; /* 让表格宽度跟随内容 */
+    min-width: 100%; /* 确保不会比容器小 */
     border-collapse: collapse;
 }
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-    font-size: 14px;
-}
-
+/* 让表头固定在顶部 */
 th {
     background: #007bff;
     color: white;
-    font-size: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap; /* 防止换行 */
+    padding: 10px;
+    text-align: left;
 }
+
+/* 让单元格文本不会换行 */
+td {
+    white-space: nowrap; /* 防止换行 */
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
 
 /* 让查询按钮居中 */
 #query-btn {

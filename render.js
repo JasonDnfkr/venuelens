@@ -47,22 +47,66 @@ function renderAuthors() {
 }
 
 // 执行查询
-document.getElementById("query-btn").onclick = async function() {
+document.getElementById("query-btn").onclick = async function () {
     const streams = Array.from(selectedStreams);
+    
     if (streams.length === 0) {
         alert("Please select at least one stream.");
         return;
     }
 
-    const query = generateSparqlQuery(streams, authors);
-    const encodedQuery = encodeString(query);
-    const response = await fetch(`https://sparql.dblp.org/sparql?query=${encodedQuery}`);
-    const data = await response.json();
-    
-    renderTable(data);
+    // 处理每个 stream 作为单独查询
+    const queryPromises = streams.map(async (stream) => {
+        const query = generateSparqlQuery([stream], authors); // 逐个查询 streams
+        const encodedQuery = encodeURIComponent(query);
+        const response = await fetch(`https://sparql.dblp.org/sparql?query=${encodedQuery}`);
+        return response.json(); // 返回 JSON 结果
+    });
+
+    try {
+        // 并行执行所有查询
+        const results = await Promise.all(queryPromises);
+        
+        // 合并所有 JSON 结果，并计算 `total_weighted_score`
+        const mergedData = mergeResults(results);
+        
+        // 渲染合并后的结果
+        renderTable(mergedData);
+
+    } catch (error) {
+        console.error("Query failed:", error);
+        alert("Query failed. Please try again.");
+    }
 };
 
-// 渲染查询结果表格
+// **合并 JSON 结果，确保 `total_weighted_score` 不重复**
+function mergeResults(resultsArray) {
+    let merged = {};
+    
+    resultsArray.forEach(result => {
+        result.results.bindings.forEach(entry => {
+            const name = entry.name.value;
+            const affiliation = entry.affiliation ? entry.affiliation.value : "Unknown";
+
+            if (!merged[name]) {
+                merged[name] = { name, affiliation, total_weighted_score: 0 };
+            }
+
+            // 遍历 JSON 头部，合并 `weighted_score`
+            Object.keys(entry).forEach((key) => {
+                if (key.endsWith("_weighted_score")) {
+                    const score = parseFloat(entry[key].value) || 0;
+                    merged[name][key] = score; // 存储每个 stream 的 weighted_score
+                    merged[name].total_weighted_score += score; // 计算 total_weighted_score
+                }
+            });
+        });
+    });
+
+    return Object.values(merged);
+}
+
+// **修正 `renderTable()`，避免重复的 `total_weighted_score`**
 function renderTable(data) {
     const tableHead = document.querySelector("#result-table thead");
     const tableBody = document.querySelector("#result-table tbody");
@@ -71,21 +115,32 @@ function renderTable(data) {
     tableHead.innerHTML = "";
     tableBody.innerHTML = "";
 
+    if (data.length === 0) {
+        tableBody.innerHTML = "<tr><td colspan='5'>No results found</td></tr>";
+        return;
+    }
+
+    // **确保 `total_weighted_score` 只出现一次**
+    let columns = ["name", "affiliation", "total_weighted_score"];
+    let weightedScoreColumns = Object.keys(data[0]).filter(k => k.endsWith("_weighted_score") && k !== "total_weighted_score");
+
+    columns = [...columns, ...weightedScoreColumns]; // 合并列名，避免重复
+
     // 渲染表头
     const headerRow = document.createElement("tr");
-    data.head.vars.forEach(varName => {
+    columns.forEach((col) => {
         const th = document.createElement("th");
-        th.textContent = varName;
+        th.textContent = col;
         headerRow.appendChild(th);
     });
     tableHead.appendChild(headerRow);
 
-    // 渲染表格数据
-    data.results.bindings.forEach(row => {
+    // 渲染数据
+    data.forEach(row => {
         const tr = document.createElement("tr");
-        data.head.vars.forEach(varName => {
+        columns.forEach(col => {
             const td = document.createElement("td");
-            td.textContent = row[varName] ? row[varName].value : "-";
+            td.textContent = row[col] !== undefined ? row[col] : "-";
             tr.appendChild(td);
         });
         tableBody.appendChild(tr);

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPARQL Query Interface</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧 Streams 选择区 -->
+        <div class="sidebar">
+            <h2>Select Streams</h2>
+            <div id="stream-list"></div>
+        </div>
+
+        <!-- 右侧 Authors 输入和查询结果 -->
+        <div class="main-content">
+            <div class="card">
+                <h2>Enter Authors</h2>
+                <input type="text" id="author-input" placeholder="Enter author name">
+                <button onclick="addAuthor()">Add</button>
+                <div id="author-list"></div>
+            </div>
+
+            <button id="query-btn">Query</button>
+
+            <div class="card">
+                <h2>Results</h2>
+                <table id="result-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="render.js"></script>
+</body>
+</html>

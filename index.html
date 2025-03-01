@@ -26,15 +26,20 @@
             <button id="query-btn">Query</button>
 
             <div class="card">
-                <h2>Results</h2>
-                <!-- 这里增加了 table-container 使表格可滚动 -->
+                <div class="results-header">
+                    <h2>Results</h2>
+                    <button id="toggle-affiliation" class="toggle-btn">Hide Affiliation</button>
+                </div>
                 <div class="table-container">
                     <table id="result-table">
                         <thead></thead>
                         <tbody></tbody>
                     </table>
                 </div>
+                <div id="pagination" class="pagination-container"></div>
             </div>
+            
+            
             
         </div>
     </div>

@@ -106,27 +106,48 @@ function mergeResults(resultsArray) {
     return Object.values(merged);
 }
 
-// **修正 `renderTable()`，避免重复的 `total_weighted_score`**
+// 分页相关变量
+let currentPage = 1;
+const rowsPerPage = 20;
+let sortedData = []; // 存储排序后的数据
+
+let showAffiliation = true; // 记录当前显示状态
+
+// **切换 Affiliation 显示状态**
+document.getElementById("toggle-affiliation").onclick = function () {
+    showAffiliation = !showAffiliation;
+    renderTable(sortedData); // 重新渲染表格
+    this.textContent = showAffiliation ? "Hide Affiliation" : "Show Affiliation";
+};
+
+// **修改 renderTable()，动态控制 Affiliation 列**
 function renderTable(data) {
+    sortedData = data.sort((a, b) => (b.total_weighted_score || 0) - (a.total_weighted_score || 0));
+    renderPage(1);
+    renderPagination();
+}
+
+// **修改 renderPage()，根据 showAffiliation 决定是否显示该列**
+function renderPage(page) {
     const tableHead = document.querySelector("#result-table thead");
     const tableBody = document.querySelector("#result-table tbody");
 
-    // 清空表格
     tableHead.innerHTML = "";
     tableBody.innerHTML = "";
 
-    if (data.length === 0) {
+    if (sortedData.length === 0) {
         tableBody.innerHTML = "<tr><td colspan='5'>No results found</td></tr>";
         return;
     }
 
-    // **确保 `total_weighted_score` 只出现一次**
-    let columns = ["name", "affiliation", "total_weighted_score"];
-    let weightedScoreColumns = Object.keys(data[0]).filter(k => k.endsWith("_weighted_score") && k !== "total_weighted_score");
+    let columns = ["name"];
+    if (showAffiliation) columns.push("affiliation"); // 动态添加 Affiliation 列
+    columns.push("total_weighted_score");
 
-    columns = [...columns, ...weightedScoreColumns]; // 合并列名，避免重复
+    let weightedScoreColumns = Object.keys(sortedData[0]).filter(k => k.endsWith("_weighted_score") && k !== "total_weighted_score");
+    columns = [...columns, ...weightedScoreColumns];
 
-    // 渲染表头
+    // **渲染表头**
     const headerRow = document.createElement("tr");
     columns.forEach((col) => {
         const th = document.createElement("th");
@@ -135,8 +156,12 @@ function renderTable(data) {
     });
     tableHead.appendChild(headerRow);
 
-    // 渲染数据
-    data.forEach(row => {
+    // **渲染数据**
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const pageData = sortedData.slice(start, end);
+
+    pageData.forEach(row => {
         const tr = document.createElement("tr");
         columns.forEach(col => {
             const td = document.createElement("td");
@@ -145,7 +170,72 @@ function renderTable(data) {
         });
         tableBody.appendChild(tr);
     });
+
+    currentPage = page;
 }
+
+
+// **分页按钮**
+function renderPagination() {
+    const paginationContainer = document.getElementById("pagination");
+    paginationContainer.innerHTML = ""; // 清空旧分页
+
+    const totalPages = Math.ceil(sortedData.length / rowsPerPage);
+    if (totalPages <= 1) return; // 只有一页时不显示分页
+
+    // **创建 "上一页" 按钮**
+    const prevButton = document.createElement("button");
+    prevButton.textContent = "Prev";
+    prevButton.className = "pagination-btn";
+    prevButton.disabled = currentPage === 1;
+    prevButton.onclick = () => changePage(currentPage - 1);
+    paginationContainer.appendChild(prevButton);
+
+    // **创建输入框**
+    const pageInput = document.createElement("input");
+    pageInput.type = "text"; // 改为 text 防止 number 默认行为
+    pageInput.value = currentPage;
+    pageInput.className = "pagination-input";
+    pageInput.onkeydown = (e) => {
+        if (e.key === "ArrowUp") {
+            changePage(currentPage + 1);
+        } else if (e.key === "ArrowDown") {
+            changePage(currentPage - 1);
+        }
+    };
+    pageInput.onchange = () => {
+        let pageNumber = parseInt(pageInput.value);
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            changePage(pageNumber);
+        } else {
+            pageInput.value = currentPage;
+        }
+    };
+    paginationContainer.appendChild(pageInput);
+
+    // **显示总页数**
+    const totalPagesText = document.createElement("span");
+    totalPagesText.textContent = ` / ${totalPages}`;
+    totalPagesText.className = "pagination-text";
+    paginationContainer.appendChild(totalPagesText);
+
+    // **创建 "下一页" 按钮**
+    const nextButton = document.createElement("button");
+    nextButton.textContent = "Next";
+    nextButton.className = "pagination-btn";
+    nextButton.disabled = currentPage === totalPages;
+    nextButton.onclick = () => changePage(currentPage + 1);
+    paginationContainer.appendChild(nextButton);
+}
+
+// **页面跳转**
+function changePage(page) {
+    if (page < 1 || page > Math.ceil(sortedData.length / rowsPerPage)) return;
+    renderPage(page);
+    renderPagination(); // 更新分页按钮
+}
+
+
 
 
 

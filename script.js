@@ -128,14 +128,17 @@ function generateSparqlQuery(streams, authors) {
   let authorFilter = '';
   if (authors.length > 0) {
     if (authors.length === 1) {
-      // 只有一个作者，使用简单的 FILTER
-      authorFilter = `FILTER(?name = "${authors[0]}")`;
+      // 只有一个作者，使用正则表达式实现模糊匹配
+      authorFilter = `FILTER(REGEX(?name, "${authors[0]}", "i"))`;
     } else {
-      // 多个作者，使用 IN 关键字
-      const authorValues = authors.map(author => `"${author}"`).join(', ');
-      authorFilter = `FILTER(?name IN (${authorValues}))`;
+      // 多个作者，使用多个 OR 条件组合模糊匹配
+      const regexFilters = authors
+        .map(author => `REGEX(?name, "${author}", "i")`)
+        .join(" || ");
+      authorFilter = `FILTER(${regexFilters})`;
     }
   }
+
 
   // 处理 weighted_score
   const weightedScore = streams.map((stream) => {

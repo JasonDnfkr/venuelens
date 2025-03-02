@@ -97,8 +97,32 @@ function addAuthor() {
         authors.push(name);
         renderAuthors();
         input.value = "";
+
+        // 如果采用客户端过滤模式且已经有查询数据，则重新过滤并更新结果表格
+        if (useClientSideFiltering && lastMergedData && lastMergedData.length > 0) {
+            let finalData = lastMergedData.filter(authorObj => {
+                let include = true;
+                selectedStreams.forEach(stream => {
+                    let threshold = streamThresholds[stream] || 0;
+                    const streamName = stream.split('/')[1];
+                    let score = authorObj[`${streamName}_weighted_score`] || 0;
+                    if (score < threshold) {
+                        include = false;
+                    }
+                });
+                return include;
+            });
+
+            finalData = finalData.filter(authorObj => {
+                let nameLower = authorObj.name.toLowerCase();
+                return authors.some(term => nameLower.indexOf(term.toLowerCase()) !== -1);
+            });
+
+            renderTable(finalData);
+        }
     }
 }
+
 
 // 渲染已添加的作者
 function renderAuthors() {
@@ -108,19 +132,54 @@ function renderAuthors() {
         const span = document.createElement("span");
         span.textContent = author;
         span.onclick = () => {
+            // 移除点击的作者
             authors.splice(index, 1);
             renderAuthors();
+
+            // 如果使用客户端过滤且已有查询数据，则重新过滤并更新结果
+            if (useClientSideFiltering && lastMergedData && lastMergedData.length > 0) {
+                let finalData = lastMergedData.filter(authorObj => {
+                    let include = true;
+                    selectedStreams.forEach(stream => {
+                        let threshold = streamThresholds[stream] || 0;
+                        const streamName = stream.split('/')[1];
+                        let score = authorObj[`${streamName}_weighted_score`] || 0;
+                        if (score < threshold) {
+                            include = false;
+                        }
+                    });
+                    return include;
+                });
+
+                // 对剩余作者进行客户端模糊匹配过滤
+                if (authors.length > 0) {
+                    finalData = finalData.filter(authorObj => {
+                        let nameLower = authorObj.name.toLowerCase();
+                        return authors.some(term => nameLower.indexOf(term.toLowerCase()) !== -1);
+                    });
+                }
+                renderTable(finalData);
+            }
         };
         authorList.appendChild(span);
     });
 }
 
+
 // 在查询按钮的点击事件中，对查询结果进行过滤处理
 document.getElementById("query-btn").onclick = async function () {
-    const streams = Array.from(selectedStreams);
+    const loadingEl = document.getElementById("loading-indicator");
+    const queryBtn = document.getElementById("query-btn");
     
+    // 显示加载提示，并禁用按钮
+    loadingEl.style.display = "block";
+    queryBtn.disabled = true;
+    
+    const streams = Array.from(selectedStreams);
     if (streams.length === 0) {
         alert("Please select at least one stream.");
+        loadingEl.style.display = "none";
+        queryBtn.disabled = false;
         return;
     }
 
@@ -134,17 +193,16 @@ document.getElementById("query-btn").onclick = async function () {
     try {
         const results = await Promise.all(queryPromises);
         const mergedData = mergeResults(results);
-        
-        // 对合并结果进行过滤：
-        // 对于每个选中的 stream，如果用户填写了门槛（默认为数值，若未填写则视为 0），
-        // 检查 author 在该 stream 对应的得分（字段名为 stream.split('/')[1]+'_weighted_score'）是否 >= 门槛
-        const filteredData = mergedData.filter(author => {
+        // 保存查询返回的合并结果，供后续客户端过滤使用
+        lastMergedData = mergedData;
+
+        let finalData = mergedData.filter(authorObj => {
+            // 先进行门槛过滤
             let include = true;
             selectedStreams.forEach(stream => {
-                // 如果用户填写了门槛值，则进行过滤，否则默认为 0（不过0不会过滤掉任何结果）
                 let threshold = streamThresholds[stream] || 0;
                 const streamName = stream.split('/')[1];
-                let score = author[`${streamName}_weighted_score`] || 0;
+                let score = authorObj[`${streamName}_weighted_score`] || 0;
                 if (score < threshold) {
                     include = false;
                 }
@@ -152,13 +210,27 @@ document.getElementById("query-btn").onclick = async function () {
             return include;
         });
 
-        renderTable(filteredData);
+        // 如果配置为客户端过滤，则进一步对作者名称进行模糊匹配
+        if (useClientSideFiltering && authors.length > 0) {
+            finalData = finalData.filter(authorObj => {
+                let nameLower = authorObj.name.toLowerCase();
+                return authors.some(term => nameLower.indexOf(term.toLowerCase()) !== -1);
+            });
+        }
+
+        renderTable(finalData);
 
     } catch (error) {
         console.error("Query failed:", error);
         alert("Query failed. Please try again.");
+    } finally {
+        // 隐藏加载提示，并恢复按钮状态
+        loadingEl.style.display = "none";
+        queryBtn.disabled = false;
     }
 };
+
+
 
 
 

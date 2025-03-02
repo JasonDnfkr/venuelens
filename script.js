@@ -1,3 +1,9 @@
+// 配置变量：设为 true 时使用客户端过滤；设为 false 时使用服务器端过滤
+const useClientSideFiltering = true;
+
+let lastMergedData = [];
+
+
 
 const GET_STREAM_NAME = `https://sparql.dblp.org/sparql?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23%3E%0APREFIX+dblp%3A+%3Chttps%3A%2F%2Fdblp.org%2Frdf%2Fschema%23%3E%0ASELECT+%3Fvenue+%3Fvenue_label+%3Fpub+%3Fpub_label+WHERE+%7B%0A+++%3Fvenue+++++++a++++++++++++++++++++++++dblp%3AStream+.%0A+++%3Fvenue+++++++rdfs%3Alabel+++++++++++++++%3Fvenue_label+.%0A%7D%0A`
 
@@ -125,19 +131,19 @@ function generateSparqlQuery(streams, authors) {
   }).join('');
 
   // 处理 authors 过滤条件
+  // 处理 authors 过滤条件（仅在使用服务器端过滤时添加）
   let authorFilter = '';
-  if (authors.length > 0) {
+  if (!useClientSideFiltering && authors.length > 0) {
     if (authors.length === 1) {
-      // 只有一个作者，使用正则表达式实现模糊匹配
       authorFilter = `FILTER(REGEX(?name, "${authors[0]}", "i"))`;
     } else {
-      // 多个作者，使用多个 OR 条件组合模糊匹配
       const regexFilters = authors
         .map(author => `REGEX(?name, "${author}", "i")`)
         .join(" || ");
       authorFilter = `FILTER(${regexFilters})`;
     }
   }
+
 
 
   // 处理 weighted_score

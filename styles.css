@@ -30,6 +30,11 @@ body {
     flex-direction: column;
 }
 
+/* 增大 stream 列表项之间的垂直间距 */
+#stream-list div {
+    /* margin-bottom: 10px; */
+}
+
 /* 每个选项的容器 */
 .sidebar div {
     display: flex;
@@ -272,3 +277,28 @@ input[type=number] {
        }
     */
 }
+
+
+/* 父容器：每个 stream 的条目 */
+.stream-item {
+    display: flex;           /* 让复选框与文字部分并列 */
+    align-items: flex-start; /* 顶部对齐 */
+    gap: 8px;                /* 复选框与文字部分的水平间距 */
+    margin-bottom: 10px;     /* 每项之间留些空间 */
+}
+
+/* 文字容器：垂直排列“名称”和“标识符” */
+.stream-text {
+    display: flex;
+    flex-direction: column;  /* 竖直排列 */
+    width: 100%;             /* 占满剩余空间，便于右对齐 */
+}
+
+/* 标识符部分：单独一行，右对齐 */
+.stream-code {
+    align-self: flex-end;    /* 在列方向末端对齐（即右侧） */
+    font-size: 0.8em;        /* 字体略小 */
+    color: #888;             /* 颜色偏淡 */
+    margin-top: 2px;         /* 与上面标题留些间距 */
+}
+

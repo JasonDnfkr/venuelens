@@ -19,26 +19,36 @@ const streamThresholds = {};
 
 // 用于在左侧 .sidebar 渲染列表
 function renderStreamList(data) {
-    // 目标容器
     const streamContainer = document.getElementById("stream-list");
     if (!streamContainer) return;
-
-    // 先清空
     streamContainer.innerHTML = "";
 
-    // 遍历 parseCSV(source) 得到的数组，每项形如：
-    // { stream: "conf/chi", name: "ACM CHI Conference on Human Factors in Computing Systems", values: [...] }
     data.forEach(item => {
+        // 外层容器：给每个 stream 项一个独立的 .stream-item
         const div = document.createElement("div");
-        // 用真实名称显示给用户，用代号当作 value
+        div.className = "stream-item";
+
+        // 用模板字符串插入多层结构：
         div.innerHTML = `
-          <input type="checkbox" value="${item.stream}"
+          <!-- 复选框 -->
+          <input type="checkbox"
+                 value="${item.stream}"
                  onchange="toggleStream(this, '${item.stream}')">
-          ${item.name}
+
+          <!-- 文字部分：标题 + 标识符 -->
+          <div class="stream-text">
+            <!-- 第一行：显示真实名称 -->
+            ${item.name}
+            <!-- 第二行：右对齐显示标识符 -->
+            <div class="stream-code">(${item.stream})</div>
+          </div>
         `;
+
+        // 插入到左侧列表
         streamContainer.appendChild(div);
     });
 }
+
 
 
 // 修改后的 toggleStream 函数

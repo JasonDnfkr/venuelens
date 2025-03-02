@@ -212,7 +212,7 @@ let currentPage = 1;
 const rowsPerPage = 20;
 let sortedData = []; // 存储排序后的数据
 
-let showAffiliation = true; // 记录当前显示状态
+let showAffiliation = false; // 记录当前显示状态
 
 // **切换 Affiliation 显示状态**
 document.getElementById("toggle-affiliation").onclick = function () {

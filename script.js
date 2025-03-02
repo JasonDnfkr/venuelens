@@ -288,3 +288,18 @@ journals/vr,59,104,
 journals/ijim,56,73,`
 
 
+// script.js 末尾新增：
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    // 调用 parseCSV，返回形如 [{stream: "conf/chi", name: "ACM CHI Conference...", values: [...]}, ...]
+    const data = await parseCSV(source);
+
+    // 调用 renderStreamList，将解析后的 data 交给它
+    // 注意：renderStreamList 在 render.js 中定义
+    if (window.renderStreamList) {
+      window.renderStreamList(data);
+    }
+  } catch (e) {
+    console.error("Error while parsing CSV:", e);
+  }
+});

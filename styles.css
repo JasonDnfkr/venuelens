@@ -246,3 +246,29 @@ td {
     background-color: #0056b3;
     border-color: #0056b3;
 }
+
+
+/* 去掉数字输入框在 WebKit 中的上下箭头 */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* 去掉数字输入框在 Firefox 中的上下箭头 */
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* 门槛输入框样式 */
+.stream-threshold {
+    width: 60px; 
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    /* 如果想让占位符更醒目，可加：
+       ::placeholder {
+         color: #999;
+       }
+    */
+}

@@ -1,24 +1,83 @@
 // 解析 Streams 数据
-const streamList = source.split("\n").map(line => line.split(",")[0]);
+// const streamList = source.split("\n").map(line => line.split(",")[0]);
 const selectedStreams = new Set();
 const authors = [];
 
-// 渲染 Streams 选择框
-const streamContainer = document.getElementById("stream-list");
-streamList.forEach(stream => {
-    const div = document.createElement("div");
-    div.innerHTML = `<input type="checkbox" value="${stream}" onclick="toggleStream('${stream}')"> ${stream}`;
-    streamContainer.appendChild(div);
-});
 
-// 处理 Streams 选择
-function toggleStream(stream) {
-    if (selectedStreams.has(stream)) {
-        selectedStreams.delete(stream);
-    } else {
+// 全局变量，保存 stream 的门槛值
+const streamThresholds = {};
+
+// // 渲染 Streams 选择框
+// const streamContainer = document.getElementById("stream-list");
+// // 修改左侧 streams 列表渲染（原有代码修改）：
+// streamList.forEach(stream => {
+//     const div = document.createElement("div");
+//     // 使用 onchange 事件传递当前复选框和 stream 名称
+//     div.innerHTML = `<input type="checkbox" value="${stream}" onchange="toggleStream(this, '${stream}')"> ${stream}`;
+//     streamContainer.appendChild(div);
+// });
+
+// 用于在左侧 .sidebar 渲染列表
+function renderStreamList(data) {
+    // 目标容器
+    const streamContainer = document.getElementById("stream-list");
+    if (!streamContainer) return;
+
+    // 先清空
+    streamContainer.innerHTML = "";
+
+    // 遍历 parseCSV(source) 得到的数组，每项形如：
+    // { stream: "conf/chi", name: "ACM CHI Conference on Human Factors in Computing Systems", values: [...] }
+    data.forEach(item => {
+        const div = document.createElement("div");
+        // 用真实名称显示给用户，用代号当作 value
+        div.innerHTML = `
+          <input type="checkbox" value="${item.stream}"
+                 onchange="toggleStream(this, '${item.stream}')">
+          ${item.name}
+        `;
+        streamContainer.appendChild(div);
+    });
+}
+
+
+// 修改后的 toggleStream 函数
+function toggleStream(checkbox, stream) {
+    if (checkbox.checked) {
         selectedStreams.add(stream);
+        // 创建门槛输入框
+        let thresholdInput = document.createElement("input");
+        thresholdInput.type = "number";
+        thresholdInput.placeholder = "Threshold";
+        thresholdInput.className = "stream-threshold";
+        // 使用 stream 名创建一个唯一的 id（注意替换斜杠）
+        thresholdInput.id = `threshold-${stream.replace('/', '-')}`;
+        thresholdInput.onchange = function() {
+            updateThreshold(stream, this.value);
+        };
+        // 将输入框添加到当前复选框所在的 div 中
+        checkbox.parentElement.appendChild(thresholdInput);
+    } else {
+        selectedStreams.delete(stream);
+        // 删除对应的门槛输入框
+        let thresholdInput = document.getElementById(`threshold-${stream.replace('/', '-')}`);
+        if (thresholdInput) {
+            thresholdInput.parentElement.removeChild(thresholdInput);
+        }
+        // 移除该 stream 的门槛值
+        delete streamThresholds[stream];
     }
 }
+
+
+// 更新门槛值的函数
+function updateThreshold(stream, value) {
+    let threshold = parseFloat(value);
+    if (isNaN(threshold)) threshold = 0;
+    streamThresholds[stream] = threshold;
+}
+
+
 
 // 添加作者
 function addAuthor() {
@@ -46,7 +105,7 @@ function renderAuthors() {
     });
 }
 
-// 执行查询
+// 在查询按钮的点击事件中，对查询结果进行过滤处理
 document.getElementById("query-btn").onclick = async function () {
     const streams = Array.from(selectedStreams);
     
@@ -55,29 +114,43 @@ document.getElementById("query-btn").onclick = async function () {
         return;
     }
 
-    // 处理每个 stream 作为单独查询
     const queryPromises = streams.map(async (stream) => {
-        const query = generateSparqlQuery([stream], authors); // 逐个查询 streams
+        const query = generateSparqlQuery([stream], authors);
         const encodedQuery = encodeURIComponent(query);
         const response = await fetch(`https://sparql.dblp.org/sparql?query=${encodedQuery}`);
-        return response.json(); // 返回 JSON 结果
+        return response.json();
     });
 
     try {
-        // 并行执行所有查询
         const results = await Promise.all(queryPromises);
-
-        // 合并所有 JSON 结果，并计算 `total_weighted_score`
         const mergedData = mergeResults(results);
         
-        // 渲染合并后的结果
-        renderTable(mergedData);
+        // 对合并结果进行过滤：
+        // 对于每个选中的 stream，如果用户填写了门槛（默认为数值，若未填写则视为 0），
+        // 检查 author 在该 stream 对应的得分（字段名为 stream.split('/')[1]+'_weighted_score'）是否 >= 门槛
+        const filteredData = mergedData.filter(author => {
+            let include = true;
+            selectedStreams.forEach(stream => {
+                // 如果用户填写了门槛值，则进行过滤，否则默认为 0（不过0不会过滤掉任何结果）
+                let threshold = streamThresholds[stream] || 0;
+                const streamName = stream.split('/')[1];
+                let score = author[`${streamName}_weighted_score`] || 0;
+                if (score < threshold) {
+                    include = false;
+                }
+            });
+            return include;
+        });
+
+        renderTable(filteredData);
 
     } catch (error) {
         console.error("Query failed:", error);
         alert("Query failed. Please try again.");
     }
 };
+
+
 
 // **合并多个 JSON 结果，确保所有 weighted_score 列都完整**
 function mergeResults(resultsArray) {
@@ -252,33 +325,3 @@ function changePage(page) {
     renderPage(page);
     renderPagination(); // 更新分页按钮
 }
-
-
-
-
-
-
-// main
-
-
-// const references = ['conf/chi', 'conf/iui', 'journals/tochi'];
-// const authors = ['Patrick Olivier', 'Per Ola Kristensson', 'Shumin Zhai']
-// const querySparql = generateSparqlQuery(references, authors);
-
-// console.log(querySparql);
-
-// const encodedString = encodeString(querySparql);
-
-// console.log(encodedString);
-
-// result = callQlever(encodedString);
-// console.log(result);
-
-
-// let table;
-
-// // 使用示例
-// (async () => {
-//   table = await parseCSV(source);
-//   console.log(table);
-// })();

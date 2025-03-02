@@ -66,7 +66,7 @@ document.getElementById("query-btn").onclick = async function () {
     try {
         // 并行执行所有查询
         const results = await Promise.all(queryPromises);
-        
+
         // 合并所有 JSON 结果，并计算 `total_weighted_score`
         const mergedData = mergeResults(results);
         
@@ -79,10 +79,23 @@ document.getElementById("query-btn").onclick = async function () {
     }
 };
 
-// **合并 JSON 结果，确保 `total_weighted_score` 不重复**
+// **合并多个 JSON 结果，确保所有 weighted_score 列都完整**
 function mergeResults(resultsArray) {
     let merged = {};
-    
+    let allWeightedScores = new Set(); // 存储所有出现过的 weighted_score 列名
+
+    // **遍历所有 JSON 结果，收集所有可能的 weighted_score 列名**
+    resultsArray.forEach(result => {
+        result.results.bindings.forEach(entry => {
+            Object.keys(entry).forEach((key) => {
+                if (key.endsWith("_weighted_score")) {
+                    allWeightedScores.add(key);
+                }
+            });
+        });
+    });
+
+    // **合并数据**
     resultsArray.forEach(result => {
         result.results.bindings.forEach(entry => {
             const name = entry.name.value;
@@ -90,14 +103,18 @@ function mergeResults(resultsArray) {
 
             if (!merged[name]) {
                 merged[name] = { name, affiliation, total_weighted_score: 0 };
+                // **初始化所有 weighted_score，防止丢失列**
+                allWeightedScores.forEach(scoreKey => {
+                    merged[name][scoreKey] = 0;
+                });
             }
 
-            // 遍历 JSON 头部，合并 `weighted_score`
+            // **填充 weighted_score 数据**
             Object.keys(entry).forEach((key) => {
                 if (key.endsWith("_weighted_score")) {
                     const score = parseFloat(entry[key].value) || 0;
-                    merged[name][key] = score; // 存储每个 stream 的 weighted_score
-                    merged[name].total_weighted_score += score; // 计算 total_weighted_score
+                    merged[name][key] = score;
+                    merged[name].total_weighted_score += score; // 计算总分
                 }
             });
         });
@@ -105,6 +122,7 @@ function mergeResults(resultsArray) {
 
     return Object.values(merged);
 }
+
 
 // 分页相关变量
 let currentPage = 1;

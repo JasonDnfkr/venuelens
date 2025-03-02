@@ -118,6 +118,7 @@ button:hover {
 
 #author-list span:hover {
     background: #0056b3;
+    text-decoration: line-through;
 }
 
 /* 让表格外层容器支持水平滚动 */
